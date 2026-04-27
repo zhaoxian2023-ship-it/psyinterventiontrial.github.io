@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>音频播放 · 心间</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg: #F4EFE6;
+  --bg-card: #FBF8F1;
+  --ink: #2A3A36;
+  --ink-soft: #5C6B66;
+  --ink-muted: #8C9994;
+  --accent: #2F5D54;
+  --accent-deep: #1F3F39;
+  --terra: #C97B5C;
+  --line: #DDD3C2;
+  --line-soft: #E8E0D0;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family: "Noto Serif SC", Georgia, serif;
+  background: linear-gradient(180deg, #1F3F39 0%, #163029 100%);
+  color: var(--bg-card);
+  min-height: 100vh;
+  overflow: hidden;
+}
+button{font-family:inherit;cursor:pointer;}
+
+.player{
+  max-width: 480px;
+  margin: 0 auto;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+@media (min-width: 900px){ .player{ max-width: 540px; } }
+
+/* 装饰背景 */
+.player::before{
+  content:""; position: absolute; top:-30%; right:-30%;
+  width: 130%; height: 80%;
+  background: radial-gradient(circle, rgba(201,123,92,.18) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+.player::after{
+  content:""; position: absolute; bottom:-30%; left:-30%;
+  width: 130%; height: 60%;
+  background: radial-gradient(circle, rgba(244,239,230,.06) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 顶部 */
+.top{
+  position: relative; z-index: 2;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 18px 22px;
+}
+.top button{
+  width: 38px; height: 38px;
+  background: rgba(244,239,230,.08);
+  border: 1px solid rgba(244,239,230,.15);
+  border-radius: 50%;
+  color: var(--bg-card);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s;
+}
+.top button:hover{ background: rgba(244,239,230,.18); }
+.top button svg{ width: 18px; height: 18px; }
+.top-label{
+  font-size: 11px;
+  letter-spacing: .25em;
+  opacity: .6;
+}
+
+/* 中间艺术封面 */
+.cover-area{
+  position: relative; z-index: 2;
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px 32px;
+  flex-direction: column;
+}
+.cover{
+  width: 240px; height: 240px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #C97B5C 0%, #2F5D54 100%);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4), 0 0 0 1px rgba(244,239,230,.08);
+}
+@media (max-width: 380px){ .cover{ width: 200px; height: 200px; } }
+
+/* 同心圆装饰 */
+.cover svg{ position: absolute; inset: 0; width: 100%; height: 100%; }
+.ring{
+  fill: none;
+  stroke: rgba(244,239,230,.25);
+  stroke-width: 1;
+}
+.ring.r1{ animation: pulse 4s ease-in-out infinite; }
+.ring.r2{ animation: pulse 4s ease-in-out infinite .8s; }
+.ring.r3{ animation: pulse 4s ease-in-out infinite 1.6s; }
+@keyframes pulse{
+  0%, 100%{ opacity: .25; transform: scale(1); transform-origin: center; }
+  50%{ opacity: .6; transform: scale(1.05); transform-origin: center; }
+}
+
+.title-block{
+  text-align: center;
+  margin-top: 36px;
+  z-index: 2;
+}
+.audio-cat{
+  font-size: 11px;
+  letter-spacing: .25em;
+  color: var(--terra);
+  margin-bottom: 8px;
+}
+.audio-name{
+  font-family: "Cormorant Garamond", serif;
+  font-size: 28px;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--bg-card);
+  margin-bottom: 4px;
+}
+.audio-zh{
+  font-size: 14px;
+  color: rgba(244,239,230,.7);
+  letter-spacing: .12em;
+}
+
+/* 底部控制 */
+.controls-area{
+  position: relative; z-index: 2;
+  padding: 0 28px 32px;
+}
+
+.progress-wrap{
+  margin-bottom: 8px;
+}
+.progress-bar{
+  height: 3px;
+  background: rgba(244,239,230,.15);
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+}
+.progress-fill{
+  position: absolute; left: 0; top: 0;
+  height: 100%;
+  background: var(--terra);
+  border-radius: 2px;
+  width: 0%;
+  transition: width .1s linear;
+}
+.progress-handle{
+  position: absolute;
+  width: 12px; height: 12px;
+  background: var(--terra);
+  border-radius: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  left: 0%;
+  box-shadow: 0 0 0 4px rgba(201,123,92,.25);
+  transition: left .1s linear;
+}
+.time-row{
+  display: flex; justify-content: space-between;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 13px;
+  color: rgba(244,239,230,.7);
+  letter-spacing: .04em;
+  margin-top: 8px;
+  font-feature-settings: "tnum";
+}
+
+/* 控制按钮 */
+.btn-row{
+  display: flex; justify-content: center; align-items: center; gap: 28px;
+  margin-top: 28px;
+}
+.ctrl{
+  width: 52px; height: 52px;
+  background: rgba(244,239,230,.08);
+  border: 1px solid rgba(244,239,230,.15);
+  color: var(--bg-card);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  transition: all .2s;
+}
+.ctrl:hover{ background: rgba(244,239,230,.16); transform: scale(1.05); }
+.ctrl svg{ width: 22px; height: 22px; }
+.ctrl .num{
+  position: absolute;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--bg-card);
+  pointer-events: none;
+}
+
+.play-btn{
+  width: 76px; height: 76px;
+  background: var(--terra);
+  border: none;
+  color: var(--bg-card);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s;
+  box-shadow: 0 8px 32px rgba(201,123,92,.4);
+}
+.play-btn:hover{ transform: scale(1.05); background: #B86A4D; }
+.play-btn:active{ transform: scale(.97); }
+.play-btn svg{ width: 28px; height: 28px; }
+
+/* 元数据 */
+.meta-row{
+  display: flex; justify-content: space-around;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(244,239,230,.1);
+}
+.meta-item{
+  text-align: center;
+}
+.meta-val{
+  font-family: "Cormorant Garamond", serif;
+  font-size: 17px;
+  color: var(--bg-card);
+  font-weight: 500;
+}
+.meta-lab{
+  font-size: 10px;
+  color: rgba(244,239,230,.5);
+  letter-spacing: .15em;
+  margin-top: 2px;
+}
+
+/* Toast */
+.toast{
+  position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+  background: rgba(42,58,54,.95);
+  color: var(--bg-card);
+  padding: 9px 16px;
+  border-radius: 2px;
+  font-size: 13px;
+  z-index: 200;
+  opacity: 0;
+  transition: opacity .25s;
+}
+.toast.show{ opacity: 1; }
+</style>
+</head>
+<body>
+<div class="player">
+  <header class="top">
+    <button id="btn-close" aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="top-label">NOW PLAYING</div>
+    <div style="width:38px"></div>
+  </header>
+
+  <div class="cover-area">
+    <div class="cover">
+      <svg viewBox="0 0 200 200">
+        <circle class="ring r1" cx="100" cy="100" r="40"/>
+        <circle class="ring r2" cx="100" cy="100" r="60"/>
+        <circle class="ring r3" cx="100" cy="100" r="80"/>
+        <circle cx="100" cy="100" r="20" fill="rgba(244,239,230,.25)"/>
+        <circle cx="100" cy="100" r="8" fill="rgba(244,239,230,.6)"/>
+      </svg>
+    </div>
+    <div class="title-block">
+      <div class="audio-cat">GUIDED PRACTICE</div>
+      <h2 class="audio-name" id="audio-name">— —</h2>
+      <p class="audio-zh">引导式练习</p>
+    </div>
+  </div>
+
+  <div class="controls-area">
+    <div class="progress-wrap">
+      <div class="progress-bar" id="bar">
+        <div class="progress-fill" id="fill"></div>
+        <div class="progress-handle" id="handle"></div>
+      </div>
+      <div class="time-row">
+        <span id="cur-time">00:00</span>
+        <span id="dur-time">--:--</span>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="ctrl" id="back15" aria-label="后退15秒" title="-15s">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+        <span class="num">15</span>
+      </button>
+      <button class="play-btn" id="play" aria-label="播放/暂停">
+        <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+      </button>
+      <button class="ctrl" id="fwd15" aria-label="前进15秒" title="+15s">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M21 12a9 9 0 1 1-3-6.7L21 8"/>
+          <path d="M21 3v5h-5"/>
+        </svg>
+        <span class="num">15</span>
+      </button>
+    </div>
+
+    <div class="meta-row">
+      <div class="meta-item">
+        <div class="meta-val" id="m-listened">00:00</div>
+        <div class="meta-lab">LISTENED</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-val" id="m-pct">0%</div>
+        <div class="meta-lab">PROGRESS</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-val" id="m-status">未开始</div>
+        <div class="meta-lab">STATUS</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">提示</div>
+
+<script>
+// 获取标题
+const params = new URLSearchParams(window.location.search);
+const audioTitle = params.get('title') || sessionStorage.getItem('currentAudio') || '引导式练习';
+document.getElementById('audio-name').textContent = audioTitle.split('·')[0].trim() || audioTitle;
+
+// 模拟音频:由于没有真实音频文件,用一个计时器模拟
+// 实际接入时,这里替换为 new Audio('xxx.mp3') 即可
+const TOTAL = 324; // 5:24 演示时长
+let cur = 0;
+let playing = false;
+let timer = null;
+let listenedTotal = 0; // 累计实际听过的秒数
+
+const fill = document.getElementById('fill');
+const handle = document.getElementById('handle');
+const bar = document.getElementById('bar');
+const curTime = document.getElementById('cur-time');
+const durTime = document.getElementById('dur-time');
+const playBtn = document.getElementById('play');
+const iconPlay = document.getElementById('icon-play');
+const iconPause = document.getElementById('icon-pause');
+
+durTime.textContent = fmt(TOTAL);
+
+function fmt(s){
+  s = Math.max(0, Math.floor(s));
+  const m = Math.floor(s/60).toString().padStart(2,'0');
+  const sec = (s%60).toString().padStart(2,'0');
+  return `${m}:${sec}`;
+}
+
+function updateUI(){
+  const pct = (cur / TOTAL) * 100;
+  fill.style.width = pct + '%';
+  handle.style.left = pct + '%';
+  curTime.textContent = fmt(cur);
+  document.getElementById('m-listened').textContent = fmt(listenedTotal);
+  document.getElementById('m-pct').textContent = Math.round(pct) + '%';
+  document.getElementById('m-status').textContent =
+    cur >= TOTAL ? '已完成' : (playing ? '播放中' : (cur > 0 ? '已暂停' : '未开始'));
+}
+
+function play(){
+  playing = true;
+  iconPlay.style.display = 'none';
+  iconPause.style.display = '';
+  timer = setInterval(() => {
+    cur += 1;
+    listenedTotal += 1;
+    if (cur >= TOTAL){
+      cur = TOTAL;
+      pause();
+      toast('练习已完成 · 数据已记录');
+      // 此处对接后端: 播放时长 listenedTotal, 是否听完 true
+    }
+    updateUI();
+  }, 1000);
+  updateUI();
+}
+function pause(){
+  playing = false;
+  iconPlay.style.display = '';
+  iconPause.style.display = 'none';
+  if (timer) clearInterval(timer);
+  timer = null;
+  updateUI();
+}
+
+playBtn.addEventListener('click', () => {
+  if (cur >= TOTAL) cur = 0;
+  playing ? pause() : play();
+});
+
+document.getElementById('back15').addEventListener('click', () => {
+  cur = Math.max(0, cur - 15);
+  updateUI();
+});
+document.getElementById('fwd15').addEventListener('click', () => {
+  cur = Math.min(TOTAL, cur + 15);
+  updateUI();
+});
+
+// 进度条拖动
+function seekFromX(x){
+  const r = bar.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (x - r.left) / r.width));
+  cur = Math.floor(ratio * TOTAL);
+  updateUI();
+}
+let dragging = false;
+bar.addEventListener('mousedown', e => { dragging = true; seekFromX(e.clientX); });
+window.addEventListener('mousemove', e => { if (dragging) seekFromX(e.clientX); });
+window.addEventListener('mouseup', () => dragging = false);
+bar.addEventListener('touchstart', e => { dragging = true; seekFromX(e.touches[0].clientX); }, {passive:true});
+window.addEventListener('touchmove', e => { if (dragging) seekFromX(e.touches[0].clientX); }, {passive:true});
+window.addEventListener('touchend', () => dragging = false);
+
+// 关闭
+document.getElementById('btn-close').addEventListener('click', () => {
+  if (timer) clearInterval(timer);
+  // 此处对接后端: 提交本次播放数据 { listenedTotal, finished: cur>=TOTAL }
+  window.location.href = 'home.html';
+});
+
+// Toast
+const toastEl = document.getElementById('toast');
+function toast(m){
+  toastEl.textContent = m;
+  toastEl.classList.add('show');
+  setTimeout(() => toastEl.classList.remove('show'), 1800);
+}
+
+updateUI();
+</script>
+</body>
+</html>
